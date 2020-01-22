@@ -1,4 +1,4 @@
-update=So 11. ledna 2020, 20:52:02 CET
+update=Pá 17. ledna 2020, 14:00:53 CET
 version=1
 last_client=kicad
 [general]
@@ -25,7 +25,7 @@ ERC_TestSimilarLabels=1
 [pcbnew]
 version=1
 PageLayoutDescrFile=
-LastNetListRead=
+LastNetListRead=baloon.net
 CopperLayerCount=2
 BoardThickness=1.6
 AllowMicroVias=0
@@ -45,10 +45,13 @@ TrackWidth4=0.4
 TrackWidth5=0.5
 TrackWidth6=0.6
 TrackWidth7=0.7
-TrackWidth8=0.8
-TrackWidth9=0.97
+TrackWidth8=0.72
+TrackWidth9=0.8
+TrackWidth10=1
 ViaDiameter1=0.8
 ViaDrill1=0.4
+ViaDiameter2=0.7
+ViaDrill2=0.35
 dPairWidth1=0.2
 dPairGap1=0.25
 dPairViaGap1=0.25
