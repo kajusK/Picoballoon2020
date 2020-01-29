@@ -98,8 +98,7 @@ void EXTId_Enable(uint8_t exti_num, extid_edge_t edge)
 
     ASSERT_NOT(exti_num > 31);
 
-    EXTI_IMR &= ~val;
-
+    exti_disable_request(val);
     switch (edge) {
        case EXTID_RISING:
            EXTI_RTSR |= val;
@@ -132,7 +131,7 @@ void EXTId_Enable(uint8_t exti_num, extid_edge_t edge)
     }
 
     exti_reset_request(val);
-    EXTI_IMR |= val;
+    exti_enable_request(val);
     nvic_enable_irq(irqn);
 }
 
