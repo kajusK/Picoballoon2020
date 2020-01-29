@@ -23,8 +23,8 @@
  * @{
  */
 
-#ifndef __DRIVERS_GPS_H_
-#define __DRIVERS_GPS_H_
+#ifndef __DRIVERS_GPS_H
+#define __DRIVERS_GPS_H
 
 #include <types.h>
 #include <time.h>

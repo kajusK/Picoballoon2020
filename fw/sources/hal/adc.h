@@ -23,8 +23,8 @@
  * @{
  */
 
-#ifndef __HAL_ADC_H_
-#define __HAL_ADC_H_
+#ifndef __HAL_ADC_H
+#define __HAL_ADC_H
 
 #include <types.h>
 

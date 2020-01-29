@@ -23,8 +23,8 @@
  * @{
  */
 
-#ifndef __UTILS_RINGBUF_H_
-#define __UTILS_RINGBUF_H_
+#ifndef __UTILS_RINGBUF_H
+#define __UTILS_RINGBUF_H
 
 #include <types.h>
 
