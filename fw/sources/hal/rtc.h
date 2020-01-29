@@ -29,6 +29,9 @@
 #include <types.h>
 #include <time.h>
 
+/** Callback type for alarm events */
+typedef void (*rtcd_alarm_cb_t)(void);
+
 /**
  * Get RTC module current time
  *
@@ -46,14 +49,32 @@ extern void RTCd_SetTime(const struct tm *tm);
 /**
  * Setup RTC wakeup timer to fire in given time
  *
+ * Enables corresponding EXTI event for wakeup from low power modes.
+ * NOT ALL DEVICES HAVE WAKEUP TIMER!
+ *
  * @param time_s    Timeout in seconds to set timer to
+ * @param persist   If true, keep the timer enabled, else disable interrupt
+ *                  after first event
  */
-extern void RTCd_SetWakeup(uint32_t time_s);
+extern void RTCd_SetWakeup(uint32_t time_s, bool persist);
+
+/**
+ * Set RTC alarm
+ *
+ * Enables corresponding EXTI lines for wakeup from low power modes.
+ *
+ * @param tm    Time at which alarm should trigger (only hour:min:sec used)
+ * @param cb    Callback for alarm event (interrupt) or NULL if not needed
+ */
+extern void RTCd_SetAlarm(const struct tm *tm, rtcd_alarm_cb_t cb);
 
 /**
  * Initialize RTC peripheral
+ *
+ * @param lse   Enable external 32768 Hz oscillator, use LSI if false
+ * @return  True if initialized, false if already initialized (device rebooted)
  */
-extern void RTCd_Init(void);
+extern bool RTCd_Init(bool lse);
 
 #endif
 

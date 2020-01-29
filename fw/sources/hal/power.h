@@ -63,8 +63,6 @@ extern void Powerd_Sleep(void);
  * In stop mode, all peripherals except RTC are down, enabled interrupt on
  * EXTI line will wake device up. No need to turn off peripherals selectively.
  *
- * Use RTCd_SetWakeup and EXTId_Enable(17, EXTID_RISING) to wake up by RTC.
- *
  * WDG is not affected and still running if enabled before
  */
 extern void Powerd_Stop(void);
