@@ -28,6 +28,7 @@
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/dbgmcu.h>
+#include <libopencm3/stm32/rtc.h>
 
 #include "hal/rtc.h"
 #include "hal/power.h"
@@ -66,7 +67,13 @@ void Powerd_Sleep(void)
     /* Wait for exit from lowest priority IRQ */
     SCB_SCR |= SCB_SCR_SLEEPONEXIT;
     SCB_SCR &= ~SCB_SCR_SLEEPDEEP;
+    /* Sleep */
     __WFI();
+
+    /* RTC should be resynchronized if needed */
+    if (RCC_BDCR & RCC_BDCR_RTCEN) {
+        rtc_wait_for_synchro();
+    }
 }
 
 void Powerd_Stop(void)
@@ -75,12 +82,14 @@ void Powerd_Stop(void)
     /* Set stop mode, disable power regulator */
     PWR_CR &= ~PWR_CR_PDDS;
     PWR_CR |= PWR_CR_LPDS;
-
-    /* Clear all pending exti interrupts before entering sleep */
-    EXTI_PR = 0xffffffff;
+    /* sleep */
+    __WFI();
 
     // TODO runs from HSI after wake up, return to previously used oscillator
-    __WFI();
+    /* RTC should be resynchronized if needed */
+    if (RCC_BDCR & RCC_BDCR_RTCEN) {
+        rtc_wait_for_synchro();
+    }
 }
 
 void Powerd_Off(void)
