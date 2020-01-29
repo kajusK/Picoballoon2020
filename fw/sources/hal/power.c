@@ -17,47 +17,115 @@
 
 /**
  * @file    hal/power.c
- * @brief   System low power control
+ * @brief   System power control
  *
  * @addtogroup hal
  * @{
  */
 
-//rtc running from LSI
-//EXTI 17 sensitive to rising edge
-//rtc should generate rtc alarm
-//rtc wakes up only from stop mode! interrupts are there for sleep mode
+#include <libopencm3/cm3/scb.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/pwr.h>
+#include <libopencm3/stm32/exti.h>
+#include <libopencm3/stm32/dbgmcu.h>
+
+#include "hal/rtc.h"
+#include "hal/power.h"
 
 /**
- * Go to sleep mode
- *
- * Core clock halted, peripherals running, any interrupt processed by nvic
- * will wake the core
+ * Execute wait for interrupt sleep instruction
  */
+static inline __attribute__((always_inline)) void __WFI(void)
+{
+    __asm volatile("wfi");
+}
+
+/**
+ * Execute wait for event sleep instruction
+ */
+static inline __attribute__((always_inline)) void __WFE(void)
+{
+    __asm volatile("wfe");
+}
+
+/**
+ * Execute data synchronization barrier instruction
+ */
+static inline __attribute__((always_inline)) void __DSB(void)
+{
+    __asm volatile("dsb");
+}
+
+void Powerd_EnableDebugging(void)
+{
+    DBGMCU_CR |= DBGMCU_CR_SLEEP | DBGMCU_CR_STOP | DBGMCU_CR_STANDBY;
+}
+
 void Powerd_Sleep(void)
 {
-//enter by wfi
+    /* Wait for exit from lowest priority IRQ */
+    SCB_SCR |= SCB_SCR_SLEEPONEXIT;
+    SCB_SCR &= ~SCB_SCR_SLEEPDEEP;
+    __WFI();
 }
 
-/**
- * Go to stop mode
- *
- * In stop mode, all peripherals except RTC are down, enabled interrupt on
- * exti line will wake device up
- */
 void Powerd_Stop(void)
 {
-    //Set SLEEPDEEP bit in ARM® Cortex®-M0 System Control register
-    //Clear PDDS bit in Power Control register (PWR_CR)
-    // Select the voltage regulator mode by configuring LPDS bit in PWR_CR
-    /*
-     * Note: To enter Stop mode, all EXTI Line pending bits (in Pending register (EXTI_PR)), all peripherals interrupt pending bits and RTC Alarm flag must be reset. Otherwise, the Stop mode entry procedure is ignored and program execution continues. If the application needs to disable the external oscillator (external clock) before entering Stop mode, the system clock source must be first switched to HSI and then clear the HSEON bit.Otherwise, if before entering Stop mode the HSEON bit is kept at 1, the security system (CSS) feature must be enabled to detect any external oscillator (external clock) failure and avoid a malfunction when entering Stop mode.
-     */
+    SCB_SCR |= SCB_SCR_SLEEPONEXIT | SCB_SCR_SLEEPDEEP;
+    /* Set stop mode, disable power regulator */
+    PWR_CR &= ~PWR_CR_PDDS;
+    PWR_CR |= PWR_CR_LPDS;
 
+    /* Clear all pending exti interrupts before entering sleep */
+    EXTI_PR = 0xffffffff;
 
-    //verify adc is enabled, disable until wake up
-    // nastaivit RTCEN v RCC_BDCR
-    // povolit LSI v RCC_CSR LSION
-    // po porbuzení jede z HSI, přehodit zpět na externí
-
+    // TODO runs from HSI after wake up, return to previously used oscillator
+    __WFI();
 }
+
+void Powerd_Off(void)
+{
+    SCB_SCR |= SCB_SCR_SLEEPONEXIT | SCB_SCR_SLEEPDEEP;
+    /* Set standby mode */
+    PWR_CR |= PWR_CR_PDDS | PWR_CR_LPDS | PWR_CR_CWUF;
+    __WFI();
+}
+
+void Powerd_Reboot(void)
+{
+    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+    __DSB();
+    while (1) {
+        ;
+    }
+}
+
+bool Powerd_BootedFromStandby(void)
+{
+    if (PWR_CSR & PWR_CSR_SBF) {
+        PWR_CR |= PWR_CR_CSBF;
+        return true;
+    }
+    return false;
+}
+
+powerd_rst_t Powerd_GetResetSource(void)
+{
+    powerd_rst_t rst = POWERD_RST_POR;
+
+    if (RCC_CSR & RCC_CSR_LPWRRSTF) {
+        rst = POWERD_RST_LOW_POWER;
+    } else if (RCC_CSR & (RCC_CSR_WWDGRSTF | RCC_CSR_IWDGRSTF)) {
+        rst = POWERD_RST_WDG;
+    } else if (RCC_CSR & RCC_CSR_SFTRSTF) {
+        rst = POWERD_RST_SW;
+    } else if (RCC_CSR & RCC_CSR_PORRSTF) {
+        rst = POWERD_RST_POR;
+    } else if (RCC_CSR & RCC_CSR_PINRSTF) {
+        rst = POWERD_RST_NRST;
+    }
+
+    RCC_CSR |= RCC_CSR_RMVF;
+    return rst;
+}
+
