@@ -19,9 +19,10 @@ CSTD		= -std=c11
 INCLUDES	= \
 	-I $(SOURCES) \
 	-I $(SOURCES)/tests \
-	-I $(SOURCES)/app/logger \
+	-I $(SOURCES)/app \
 	-I $(UNITY_DIR)/src \
-	-I $(UNITY_DIR)/extras/fixture/src
+	-I $(UNITY_DIR)/extras/fixture/src \
+	-I $(UNITY_DIR)/extras/memory/src
 BUILD_FLAGS	= -fprofile-arcs -ftest-coverage
 DEFS		= -DUNITY_FLOAT_VERBOSE
 
