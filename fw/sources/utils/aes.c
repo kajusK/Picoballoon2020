@@ -22,9 +22,10 @@
  * The algorithm is described at wiki
  * https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
  *
- * Using a more computational heavy aproach, but only 256 bytes of lookup
+ * Using a more computational heavy approach, but only 256 bytes of lookup
  * tables are required. AES steps for each round can be joined together using
- * bigger (4k) lookup tables.
+ * bigger (4k) lookup tables. S_Box tables can be computed on the fly
+ * to reduce memory footprint, but increases compute time.
  *
  * @addtogroup utils
  * @{
