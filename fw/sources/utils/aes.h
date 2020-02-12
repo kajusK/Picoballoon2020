@@ -47,6 +47,19 @@ extern void AES128_Encrypt(uint8_t *data, const uint8_t *key);
  */
 extern void AES128_Decrypt(uint8_t *data, const uint8_t *key);
 
+/**
+ * Generate Message Authentication Code for given data
+ *
+ * https://tools.ietf.org/html/rfc4493
+ *
+ * @param data      Data to generate code for
+ * @param len       Data length
+ * @param key       Key to use for encryption
+ * @param tag       Buffer to store result to (16 bytes tag)
+ */
+extern void AES128_CMAC(const uint8_t *data, size_t len, const uint8_t *key,
+        uint8_t *tag);
+
 #endif
 
 /** @} */

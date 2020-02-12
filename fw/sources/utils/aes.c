@@ -340,11 +340,21 @@ static void AESi_GenRoundKeyLast(uint8_t *key)
 }
 
 /**
- * Encrypt 16 bytes of data by AES128
+ * Shift all bits in a key to the left by 1
  *
- * @param data  16 bytes to encrypt, result is stored here
- * @param key   128bit encryption key
+ * @param key       16 bytes Key to be modified, result is stored here
  */
+static void AESi_ShiftKeyLeft(uint8_t *key)
+{
+    uint8_t overflow = 0;
+
+    for (uint8_t i = 0; i < 15; i++) {
+        overflow = key[i+1] & 0x80 ? 1 : 0;
+        key[i] = (key[i] << 1) + overflow;
+    }
+    key[15] <<= 1;
+}
+
 void AES128_Encrypt(uint8_t *data, const uint8_t *key)
 {
     uint8_t *state = data;
@@ -372,12 +382,6 @@ void AES128_Encrypt(uint8_t *data, const uint8_t *key)
     AESi_AddRoundKey(state, roundKey);
 }
 
-/**
- * Encrypt 16 bytes of data by AES128
- *
- * @param data  16 bytes to encrypt, result is stored here
- * @param key   128bit encryption key
- */
 void AES128_Decrypt(uint8_t *data, const uint8_t *key)
 {
     uint8_t *state = data;
@@ -404,5 +408,55 @@ void AES128_Decrypt(uint8_t *data, const uint8_t *key)
     AESi_AddRoundKey(state, roundKey);
 }
 
+void AES128_CMAC(const uint8_t *data, size_t len, const uint8_t *key,
+        uint8_t *tag)
+{
+    uint8_t k1[16] = {0};
+    uint8_t k2[16] = {0};
+    uint8_t xor = 0;
+    uint8_t i;
+
+    /* Prepare keys */
+    AES128_Encrypt(k1, key);
+    if (k1[0] & 0x80) {
+        xor = 0x87;
+    }
+    AESi_ShiftKeyLeft(k1);
+    k1[15] ^= xor;
+
+    memcpy(k2, k1, 16);
+    AESi_ShiftKeyLeft(k2);
+    if (k1[0] & 0x80) {
+        k2[15] ^= 0x87;
+    }
+
+    /* Run the cmac algorithm */
+    memset(tag, 0, 16);
+    /* First process n-1 blocks */
+    while (len > 16) {
+        for (i = 0; i < 16; i++) {
+            tag[i] ^= *data++;
+        }
+        AES128_Encrypt(tag, key);
+        len -= 16;
+    }
+
+    if (len == 16) {
+        /* complete block */
+        for (i = 0; i < len; i++) {
+            tag[i] ^= (*data++) ^ k1[i];
+        }
+    } else {
+        /* incomplete block */
+        for (i = 0; i < len; i++) {
+            tag[i] ^= (*data++) ^ k2[i];
+        }
+        tag[i] ^= 0x80 ^ k2[i];
+        for (i += 1; i < 16; i++) {
+            tag[i] ^= k2[i];
+        }
+    }
+    AES128_Encrypt(tag, key);
+}
 
 /** @} */
