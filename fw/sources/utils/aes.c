@@ -408,15 +408,12 @@ void AES128_Decrypt(uint8_t *data, const uint8_t *key)
     AESi_AddRoundKey(state, roundKey);
 }
 
-void AES128_CMAC(const uint8_t *data, size_t len, const uint8_t *key,
-        uint8_t *tag)
+void AES128_CMACGetKeys(uint8_t *k1, uint8_t *k2, const uint8_t *key)
 {
-    uint8_t k1[16] = {0};
-    uint8_t k2[16] = {0};
     uint8_t xor = 0;
-    uint8_t i;
+    memset(k1, 0x00, 16);
+    memset(k2, 0x00, 16);
 
-    /* Prepare keys */
     AES128_Encrypt(k1, key);
     if (k1[0] & 0x80) {
         xor = 0x87;
@@ -429,6 +426,17 @@ void AES128_CMAC(const uint8_t *data, size_t len, const uint8_t *key,
     if (k1[0] & 0x80) {
         k2[15] ^= 0x87;
     }
+}
+
+void AES128_CMAC(const uint8_t *data, size_t len, const uint8_t *key,
+        uint8_t *tag)
+{
+    uint8_t k1[16];
+    uint8_t k2[16];
+    uint8_t i;
+
+    /* Prepare keys */
+    AES128_CMACGetKeys(k1, k2, key);
 
     /* Run the cmac algorithm */
     memset(tag, 0, 16);

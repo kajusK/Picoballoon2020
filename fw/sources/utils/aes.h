@@ -48,6 +48,15 @@ extern void AES128_Encrypt(uint8_t *data, const uint8_t *key);
 extern void AES128_Decrypt(uint8_t *data, const uint8_t *key);
 
 /**
+ * Generate k1 and k2 keys for AES128 CMAC computation
+ *
+ * @param k1        16 bytes buffer for k1
+ * @param k2        16 bytes buffer for k2
+ * @param key       128bit encryption key
+ */
+extern void AES128_CMACGetKeys(uint8_t *k1, uint8_t *k2, const uint8_t *key);
+
+/**
  * Generate Message Authentication Code for given data
  *
  * https://tools.ietf.org/html/rfc4493

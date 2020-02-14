@@ -34,6 +34,7 @@ static void RunAll(void)
     Ringbuf_RunTests();
     Log_RunTests();
     AES_RunTests();
+    Lora_RunTests();
 }
 
 int main(int argc, const char *argv[])
