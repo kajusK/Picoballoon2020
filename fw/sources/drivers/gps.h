@@ -38,7 +38,8 @@ typedef struct {
     int32_t speed_dmh;  /* speed in dm/s */
     int32_t hdop_dm;    /* location precision */
     uint8_t satellites; /* Visible satellites */
-    time_t timestamp;   /* Unix timestamp of the data received */
+    time_t time;        /* Unix time (s since 1.1.1970) of the data received */
+    uint32_t timestamp; /* Millis timestamp when the gps fix was obtained */
 } gps_info_t;
 
 /**
@@ -56,7 +57,12 @@ extern void Gps_WakeUp(void);
  *
  * @return Data if any or NULL if no data received yet
  */
-gps_info_t *Gps_Get(void);
+extern gps_info_t *Gps_Get(void);
+
+/**
+ * Reset GPS recorded data to wait for brand new in loop/get functions
+ */
+extern void Gps_InvalidateData(void);
 
 /**
  * Process received GPS data
@@ -65,7 +71,7 @@ gps_info_t *Gps_Get(void);
  *
  * @return data if just processed new gps data or NULL
  */
-gps_info_t *Gps_Loop(void);
+extern gps_info_t *Gps_Loop(void);
 
 /**
  * Initialize GPS module

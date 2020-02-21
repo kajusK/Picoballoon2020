@@ -26,6 +26,7 @@
 #include "hal/uart.h"
 #include "hal/io.h"
 #include "utils/ringbuf.h"
+#include "utils/time.h"
 #include "modules/log.h"
 
 #include "gps.h"
@@ -99,7 +100,7 @@ static bool Gpsi_ProcessRmc(const char *msg, gps_info_t *info)
     info->speed_dmh = Gpsi_NmeaF2Dec(&rmc.speed_kmh, 10);
     info->lat = rmc.lat;
     info->lon = rmc.lon;
-    info->timestamp = Gpsi_Nmea2Timestamp(&rmc.fix_time, &rmc.date);
+    info->time = Gpsi_Nmea2Timestamp(&rmc.fix_time, &rmc.date);
     return true;
 }
 
@@ -139,7 +140,13 @@ gps_info_t *Gps_Get(void)
     return NULL;
 }
 
+void Gps_InvalidateData(void)
+{
+    gpsi_data_valid = false;
+}
+
 //TODO valid only after both gga and rmc received
+//todo verify data contain meaningful info - lat, lon, alt, etc must not be zero
 gps_info_t *Gps_Loop(void)
 {
     while (!Ring_Empty(&gpsi_ringbuf)) {
@@ -154,6 +161,7 @@ gps_info_t *Gps_Loop(void)
                 /* Main source of data, sets data validity */
                 if (Gpsi_ProcessGga(msg, &gpsi_info)) {
                     gpsi_data_valid = true;
+                    gpsi_info.timestamp = millis();
                     return &gpsi_info;
                 }
                 break;
