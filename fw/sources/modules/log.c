@@ -40,7 +40,7 @@
 #define TERM_CYAN   "\x1B[36m"
 #define TERM_WHITE  "\x1B[37m"
 
-static log_level_t logi_level = LOG_WARNING;
+static log_level_t logi_level = LOG_INFO;
 static int logi_uart = USART_DEBUG_TX;
 
 /**
