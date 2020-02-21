@@ -48,7 +48,7 @@ extern uint16_t Adcd_ReadVccMv(void);
  *
  * @return temperature in degreec C
  */
-extern int16_t Adcd_ReadTempDegC(void);
+extern int8_t Adcd_ReadTempDegC(void);
 
 /**
  * Update reference voltage from internal reference measurements

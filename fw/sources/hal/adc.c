@@ -77,7 +77,7 @@ uint16_t Adcd_ReadVccMv(void)
     return 3300U * VREFINT_CAL/raw;
 }
 
-int16_t Adcd_ReadTempDegC(void)
+int8_t Adcd_ReadTempDegC(void)
 {
     uint16_t raw = Adcdi_ReadRaw(ADC_TEMP_CHANNEL);
     uint16_t ref_mv = adcdi_vdda_mv;
