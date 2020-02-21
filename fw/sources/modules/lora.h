@@ -61,6 +61,22 @@ extern bool Lora_Send(const uint8_t *data, uint8_t len);
 extern void Lora_ResetFrameCounters(void);
 
 /**
+ * Set internal frame counters (e.g. after reboot)
+ *
+ * @param frame_rx  Received frames counter
+ * @param frame_tx  Sent frame sounter
+ */
+extern void Lora_SetCounters(uint32_t frame_rx, uint32_t frame_tx);
+
+/**
+ * Get internal frame counters (e.g. to save before reboot when in ABP mode)
+ *
+ * @param frame_rx  Received frames counter (or NULL if not needed)
+ * @param frame_tx  Sent frame sounter (or NULL if not needed)
+ */
+extern void Lora_GetCounters(uint32_t *frame_rx, uint32_t *frame_tx);
+
+/**
  * Initialize LoRaWan module in Activation by Personalization (ABP)
  *
  * CAUTION - all memory addresses (device key,...) supplied to the function must

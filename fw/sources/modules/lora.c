@@ -205,6 +205,22 @@ void Lora_ResetFrameCounters(void)
     lorai_frame_tx_cnt = 0;
 }
 
+void Lora_SetCounters(uint32_t frame_rx, uint32_t frame_tx)
+{
+    (void) frame_rx;
+    lorai_frame_tx_cnt = frame_tx;
+}
+
+void Lora_GetCounters(uint32_t *frame_rx, uint32_t *frame_tx)
+{
+    if (frame_rx != NULL) {
+        *frame_rx = 0;
+    }
+    if (frame_tx != NULL) {
+        *frame_tx = lorai_frame_tx_cnt;
+    }
+}
+
 void Lora_InitAbp(lora_send_cb_t send, const uint8_t *DevAddr,
         const uint8_t *NwkSkey, const uint8_t *AppSkey)
 {
