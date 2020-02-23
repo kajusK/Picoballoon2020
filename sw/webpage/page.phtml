@@ -1,0 +1,140 @@
+<?php
+/*
+ * Copyright (C) 2020 Jakub Kaderka
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+defined("IN_APP") or die("Unauthorized access");
+?>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+    <meta http-equiv="Content-language" content="en" />
+
+    <title>Deadbadger.cz Picoballoon tracking</title>
+
+    <meta name="description" content="Tracking of the deadbadger picoballoon probe" />
+    <link rel="stylesheet" type="text/css" href="theme.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico"/>
+    <script type="text/javascript" src="https://api.mapy.cz/loader.js"></script>
+    <script type="text/javascript">Loader.load()</script>
+</head>
+<body>
+<div id="wrapper">
+    <div id="about">
+        <h1>Tracking for Deadbadger picoballoon probe</h1>
+        <ul>
+            <li>Controlled by STM32F030</li>
+            <li>GPS receiver SIM28ML</li>
+            <li>Pressure sensor MS5607</li>
+            <li>Relative humidity sensor Si7020</li>
+            <li>Powered by Solar cells with supercap (or battery only if needed)</li>
+            <li>868MHz LoRaWan with <a href="https://www.thethingsnetwork.org/">TTN</a> for telemetry</li>
+        </ul>
+        <img src='probe.jpg' alt="probe" width="300px"/>
+    </div>
+    <div id="map">
+    </div>
+
+    <script type="text/javascript">
+        var data = [
+            <?php foreach($data as $d): ?>
+                {'lat': <?= $d['lat'] ?>,
+                 'lon': <?= $d['lon'] ?>,
+                 'time': "<?= $d['time'] ?>",
+                 'temp': "<?= $d['temp_c'] ?>",
+                 'alt_m': <?= $d['alt_m'] ?>},
+            <?php endforeach; ?>];
+        var center = SMap.Coords.fromWGS84(16.64, 49.2);
+        var map = new SMap(JAK.gel("map"), center, 8);
+        map.addDefaultLayer(SMap.DEF_BASE).enable();
+        map.addDefaultControls();
+
+        // keep map size in sync with parent size
+        var sync = new SMap.Control.Sync();
+        map.addControl(sync);
+
+        // markers with know probe positions
+        var markers = new SMap.Layer.Marker();
+        map.addLayer(markers);
+        markers.enable();
+
+        for (let d of data) {
+            var title = d['time']+"\nalt: "+d['alt_m']+" m\ntemp: "+d['temp']+"°C";
+            var options = {'title': title};
+            var pos = SMap.Coords.fromWGS84(d['lat'], d['lon']);
+            var marker = new SMap.Marker(pos, false, options);
+            markers.addMarker(marker);
+        }
+
+        // ballon path
+        var trace = new SMap.Layer.Geometry();
+        map.addLayer(trace);
+        trace.enable();
+
+        var points = [];
+        for (let d of data) {
+            points.push(SMap.Coords.fromWGS84(d['lat'], d['lon']));
+        }
+        var options = {
+            color: "#f00",
+            width: 3
+        };
+        var polyline = new SMap.Geometry(SMap.GEOMETRY_POLYLINE, null, points, options);
+        trace.addGeometry(polyline);
+
+        if (points.length) {
+            var cz = map.computeCenterZoom(points);
+            map.setCenterZoom(cz[0], cz[1]);
+        }
+    </script>
+
+    <div id="log">
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>RSSI [dBm]</th>
+                <th>Altitude [m]</th>
+                <th>Pressure [Pa]</th>
+                <th>Temperature [C]</th>
+                <th>Humidity [%]</th>
+                <th>Battery [mV]</th>
+                <th>Solar [mV]</th>
+                <th>GPS fix</th>
+            </tr>
+        <?php foreach(array_reverse($data) as $d): ?>
+            <tr>
+                <td><?= $d['time']?> </td>
+                <td><?= $d['rssi']?></td>
+                <td><?= $d['alt_m']?></td>
+                <td><?= $d['pressure_pa']?></td>
+                <td><?= $d['temp_c']?></td>
+                <td><?= $d['RH']?></td>
+                <td><?= $d['bat_mv']?></td>
+                <td><?= $d['solar_mv']?></td>
+                <td><?= $d['gps_fix']?></td>
+            </tr>
+        <?php endforeach ?>
+        </table>
+    </div>
+    <div id="footer">
+        <a href="https://deadbadger.cz/projects/picoballoon-2020">Picoballoon description</a><br/>
+        <a href="https://github.com/kajusK/Picoballoon2020">Picoballoon source and design files</a>
+    </div>
+</div>
+</body>
+</html>
