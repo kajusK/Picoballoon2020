@@ -159,7 +159,7 @@ void I2Cd_Init(uint8_t device, bool fast)
 
     rcc_periph_clock_enable(rcc);
     /*
-     * bug at leas on stm32f070, i2c clk period must be shorter than 100 ns
+     * bug at least on stm32f070, i2c clk period must be shorter than 100 ns
      * for fast mode - therefore use sysclk if at least 10 MHz, or fail
      */
     ASSERT_NOT(fast && rcc_ahb_frequency < 10000000UL);

@@ -197,6 +197,7 @@ bool Lora_Send(const uint8_t *data, uint8_t len)
 
     lorai_send_cb(message, len + 13);
     lorai_frame_tx_cnt++;
+
     return true;
 }
 

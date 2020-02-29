@@ -255,6 +255,7 @@ void RFM_SetLoraParams(rfm_bw_t bandwidth, rfm_sf_t sf)
             break;
     }
 
+
     /* bandwidth, coding rate 4/5, explicit header mode */
     RFMi_WriteReg(RFM_REG_MODEM_CONF1, (reg_bw << 4) | 0x02);
     /* SF rate, crc-enable */
@@ -288,7 +289,7 @@ void RFM_SetLoraRegion(rfm_lora_region_t region)
             rfmi_lora_region = rfmi_lora_region_us;
             break;
         case RFM_REGION_AS920:
-            rfmi_lora_region = rfmi_lora_region_us;
+            rfmi_lora_region = rfmi_lora_region_as;
             break;
         default:
             rfmi_lora_region = rfmi_lora_region_eu;
@@ -373,7 +374,7 @@ bool RFM_LoraInit(void)
     RFMi_WriteReg(RFM_REG_FIFO_RX_BASE, 0x00);
 
     /* Default lora parameters */
-    RFM_SetLoraParams(RFM_BW_125k, 7);
+    RFM_SetLoraParams(RFM_BW_125k, RFM_SF_7);
     RFM_SetPowerDBm(14);
     RFM_SetLoraRegion(RFM_REGION_EU863);
 
