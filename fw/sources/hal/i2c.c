@@ -84,8 +84,11 @@ static enum rcc_periph_clken I2Cdi_GetRcc(uint8_t device)
  */
 static void I2Cdi_Restart(uint32_t i2c)
 {
+    /* write, read and write again to assure there's one cycle between writes */
     i2c_peripheral_disable(i2c);
-    i2c_peripheral_enable(i2c);
+    if (!(I2C_CR1(i2c) & I2C_CR1_PE)) {
+        i2c_peripheral_enable(i2c);
+    }
 }
 
 /**
@@ -126,7 +129,9 @@ bool I2Cd_Transceive(uint8_t device, uint8_t address, const uint8_t *txbuf,
     uint32_t i2c = I2Cdi_GetDevice(device);
     uint32_t start;
 
-    /** modified code from libopencm3 library - infinite loop on nack, wtf?? */
+    /* Clear interrupt flags */
+    I2C_ICR(i2c) |= I2C_ICR_STOPCF | I2C_ICR_NACKCF;
+
     if (txlen) {
         i2c_set_7bit_address(i2c, address);
         i2c_set_write_transfer_dir(i2c);
