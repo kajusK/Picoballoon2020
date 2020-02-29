@@ -171,44 +171,17 @@ static void RFMi_WriteFifo(uint8_t reg, const uint8_t *data, size_t len)
     cs_unset();
 }
 
-/**
- * Set transmit power
- *
- * Output range is from -4 to 14dBm, W versions can use up to 20 dBm. Over
- * 17 dBm, continuous operation is not possible. Up to 1% duty cycle and antenna
- * with VSWR up to 3:1 should be used.
- *
- * @param power     Required power from -4 to 20 dBm
- */
 void RFM_SetPowerDBm(int8_t power)
 {
-    bool paEnabled = false;
-    uint8_t maxPower;
+    /* doesn't seem to work when PA is disabler - RFO pin not connected? */
+    bool paEnabled = true;
+    uint8_t maxPower = 0x07;
     uint8_t outPower;
-    uint8_t Pmax;
 
-    ASSERT_NOT(power > 20 || power < -4);
+    ASSERT_NOT(power > 20 || power < 2);
 
-    if (power <= 14) {
-        /*
-         * Pout = Pmax - (15 - outPower)
-         * Pmax = 10.8 + 0.6*maxPower
-         */
-        if (power > 5) {
-            maxPower = 0x7;
-            Pmax = 14;
-        } else {
-            maxPower = 0;
-            Pmax = 11;
-        }
-        paEnabled = false;
-    } else {
-        /* Pout = 17 - (15 - outPower) */
-        maxPower = 0x7;
-        Pmax = 17;
-        paEnabled = true;
-    }
-    outPower = power + 15 - Pmax;
+    /* Pout = 17 - (15 - outPower) */
+    outPower = power - 2;
 
     /* Over 17, only 20 dBm mode is possible */
     if (power > 17) {
@@ -221,20 +194,6 @@ void RFM_SetPowerDBm(int8_t power)
     }
 }
 
-/**
- * Set Lora transmission bandwidth and spreading factor
- *
- * Use https://www.thethingsnetwork.org/airtime-calculator to calculate
- * required airtime (and also check max amount of bytes and possible datarates
- * for each region).
- *
- * EU supports only 125 and 250 kHz (only SF7 supported here).
- * Higher SF -> lower baudrate -> higher sensitivity -> longer airtime
- * Higher BW -> higher baudrate -> lower sensitivity -> shorter airtime
- *
- * @param bandwidth     Bandwidth selection
- * @param sf            Spreading factor
- */
 void RFM_SetLoraParams(rfm_bw_t bandwidth, rfm_sf_t sf)
 {
     uint8_t reg_bw;
@@ -271,11 +230,6 @@ void RFM_SetLoraParams(rfm_bw_t bandwidth, rfm_sf_t sf)
     }
 }
 
-/**
- * Configure region we are in (sets frequency range)
- *
- * @param region        Region settings to be used
- */
 void RFM_SetLoraRegion(rfm_lora_region_t region)
 {
     switch (region) {
@@ -297,12 +251,6 @@ void RFM_SetLoraRegion(rfm_lora_region_t region)
     }
 }
 
-/**
- * Send raw Lora modulated data
- *
- * @param data      Data to be sent
- * @param len       Length of the data buffer
- */
 void RFM_LoraSend(const uint8_t *data, size_t len)
 {
     RFMi_WriteReg(RFM_REG_MODE, RFM_MODE_LORA | RFM_MODE_STDBY);
@@ -332,11 +280,6 @@ void RFM_LoraSend(const uint8_t *data, size_t len)
 }
 
 
-/**
- * Initialize RFM module in lora mode
- *
- * @return True if module is initialized, false if not responding
- */
 bool RFM_LoraInit(void)
 {
     /* Reset the device */
@@ -375,7 +318,7 @@ bool RFM_LoraInit(void)
 
     /* Default lora parameters */
     RFM_SetLoraParams(RFM_BW_125k, RFM_SF_7);
-    RFM_SetPowerDBm(14);
+    RFM_SetPowerDBm(17);
     RFM_SetLoraRegion(RFM_REGION_EU863);
 
     return true;

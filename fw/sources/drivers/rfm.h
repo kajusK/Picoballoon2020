@@ -60,7 +60,10 @@ typedef enum {
  * 17 dBm, continuous operation is not possible. Up to 1% duty cycle and antenna
  * with VSWR up to 3:1 should be used.
  *
- * @param power     Required power from -4 to 20 dBm
+ * As the RFM95 module doesn't seem to have RFO output connected, PA must
+ * be enabled all the time, therefore the usable range starts really at 2 dBm
+ *
+ * @param power     Required power from 2 to 20 dBm
  */
 extern void RFM_SetPowerDBm(int8_t power);
 
