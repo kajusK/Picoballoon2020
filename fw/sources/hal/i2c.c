@@ -77,6 +77,49 @@ static enum rcc_periph_clken I2Cdi_GetRcc(uint8_t device)
 	return i2cdi_rcc[device - 1];
 }
 
+/**
+ * Disable and enable peripheral, e.g. to clear hanging busy flag
+ *
+ * @param i2c   I2C device base address
+ */
+static void I2Cdi_Restart(uint32_t i2c)
+{
+    i2c_peripheral_disable(i2c);
+    i2c_peripheral_enable(i2c);
+}
+
+/**
+ * Wait until ISR flag is set or error/timeout appears
+ *
+ * @param i2c   I2C device base address
+ * @param flag  ISR register flag to check
+ *
+ * @return true if succeded, false if timeouted/error appeared
+ */
+static bool I2Cdi_WaitFlag(uint32_t i2c, uint32_t flag)
+{
+    uint32_t start = millis();
+
+    while (!(I2C_ISR(i2c) & flag)) {
+        if (i2c_nack(i2c)) {
+            while (i2c_busy(i2c)) {
+                /* bug? Sometime hangs on busy here, just reset peripheral */
+                if (millis() - start > I2C_TIMEOUT_MS) {
+                    I2Cdi_Restart(i2c);
+                    break;
+                }
+            }
+            return false;
+        }
+        /* When SCL line is e.g. shorted, timeout to avoid infinite loop */
+        if (millis() - start > I2C_TIMEOUT_MS) {
+            I2Cdi_Restart(i2c);
+            return false;
+        }
+    }
+    return true;
+}
+
 bool I2Cd_Transceive(uint8_t device, uint8_t address, const uint8_t *txbuf,
 		uint8_t txlen, uint8_t *rxbuf, uint8_t rxlen)
 {
@@ -96,38 +139,14 @@ bool I2Cd_Transceive(uint8_t device, uint8_t address, const uint8_t *txbuf,
         i2c_send_start(i2c);
 
         while (txlen--) {
-            bool wait = true;
-            start = millis();
-            while (wait) {
-                if (i2c_transmit_int_status(i2c)) {
-                    wait = false;
-                }
-                if (i2c_nack(i2c)) {
-                    /*
-                     * When no device responds, wait for i2c to send stop
-                     * When actual nack is received, i2c hangs, timeout
-                     */
-                    while (i2c_busy(i2c)) {
-                        if (millis() - start > I2C_TIMEOUT_MS) {
-                            i2c_reset(i2c);
-                            break;
-                        }
-                    }
-                    return false;
-                }
-                /* When SCL line is e.g. shorted, timeout to avoid infinite loop */
-                if (millis() - start > I2C_TIMEOUT_MS) {
-                    i2c_reset(i2c);
-                    return false;
-                }
+            if (!I2Cdi_WaitFlag(i2c, I2C_ISR_TXIS)) {
+                return false;
             }
             i2c_send_data(i2c, *txbuf++);
         }
-        if (rxlen) {
+        if (rxlen && !I2Cdi_WaitFlag(i2c, I2C_ISR_TC)) {
             /* Wait until last byte was send before sending start again */
-            while (!i2c_transfer_complete(i2c)) {
-            	;
-            }
+            return false;
         }
     }
 
@@ -142,8 +161,8 @@ bool I2Cd_Transceive(uint8_t device, uint8_t address, const uint8_t *txbuf,
         i2c_enable_autoend(i2c);
 
         for (size_t i = 0; i < rxlen; i++) {
-            while (!i2c_received_data(i2c)) {
-            	;
+            if (!I2Cdi_WaitFlag(i2c, I2C_ISR_RXNE)) {
+                return false;
             }
             rxbuf[i] = i2c_get_data(i2c);
         }
