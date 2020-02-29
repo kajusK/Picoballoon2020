@@ -41,8 +41,8 @@
 
 #define I2C_DEVICE 1
 
-/** Sensor i2c address, last bit is CSB pin */
-#define MS5607_ADDR 0x76
+/** Sensor i2c address, last bit is inverted value of the CSB pin */
+#define MS5607_ADDR 0x77
 
 /** Sensor calibration data storage */
 static uint16_t ms5607i_calib[6];
@@ -58,9 +58,82 @@ static bool MS5607i_Cmd(uint8_t cmd)
     return I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, &cmd, 1, NULL, 0);
 }
 
+/**
+ * Verify PROM content is valid
+ *
+ * @param prom  Prom content (16 bytes)
+ * @return true if crc matches, false otherwise
+ */
+static bool MS5607i_Crc(uint16_t *buf)
+{
+    uint32_t rem = 0;
+    uint8_t crc = buf[7] & 0x000f;
+
+    buf[7] &= 0xff00;
+    for (uint8_t i = 0; i < 16; i++) {
+        if (i & 1) {
+            rem ^= buf[i/2] & 0x00ff;
+        } else {
+            rem ^= buf[i/2] >> 8;
+        }
+
+        for (uint8_t j = 0; j < 8; j++) {
+            if (rem & 0x8000) {
+                rem ^= 0x1800;
+            }
+            rem <<= 1;
+        }
+    }
+
+    buf[7] |= crc;
+    rem = (rem >> 12) & 0x000f;
+    if (crc == rem) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Read measured value
+ *
+ * @param val   Pointer to store result to
+ * @return  true if succeeded, false if not responding
+ */
+static bool MS5607i_ReadAdc(uint32_t *val)
+{
+    uint8_t buf[3];
+
+    MS5607i_Cmd(CMD_READ_ADC);
+    if (!I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, NULL, 0, buf, 3)) {
+        return false;
+    }
+
+    *val = buf[0] << 16 | buf[1] << 8 | buf[2];
+    return true;
+}
+
+/**
+ * Read value from PROM
+ *
+ * @param addr      Address to read from
+ * @param val       Pointer to store result to
+ * @return  true if succeeded, false if not responding
+ */
+static bool MS5607i_ReadProm(uint8_t addr, uint16_t *val)
+{
+    uint8_t buf[2];
+
+    MS5607i_Cmd(CMD_READ_PROM | (addr << 1));
+    if (!I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, NULL, 0, buf, 2)) {
+        return false;
+    }
+
+    *val = buf[0] << 8 | buf[1];
+    return true;
+}
+
 bool MS5607_Read(ms5607_osr_t osr, uint32_t *pressure_Pa, int32_t *temp_mdeg)
 {
-    bool ret;
     uint32_t d1, d2;
     int32_t dt, temp, p, t2;
     int64_t off, sens, off2, sens2;
@@ -68,21 +141,18 @@ bool MS5607_Read(ms5607_osr_t osr, uint32_t *pressure_Pa, int32_t *temp_mdeg)
 
     MS5607i_Cmd(CMD_CONVERT_D1 | osr);
     delay_ms(CONVERSION_TIME_MS << osr);
-    MS5607i_Cmd(CMD_READ_ADC);
-    ret = I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, NULL, 0, (uint8_t *) &d1, 2);
-    if (!ret) {
-        return false;
-    }
-    MS5607i_Cmd(CMD_CONVERT_D2 | osr);
-    delay_ms(CONVERSION_TIME_MS << osr);
-    MS5607i_Cmd(CMD_READ_ADC);
-    ret = I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, NULL, 0, (uint8_t *) &d2, 2);
-    if (!ret) {
+    if (!MS5607i_ReadAdc(&d1)) {
         return false;
     }
 
-    dt = d2 - (((uint32_t) ms5607i_calib[4]) << 8);
-    temp = 2000 + (((int64_t) dt*ms5607i_calib[5]) << 23);
+    MS5607i_Cmd(CMD_CONVERT_D2 | osr);
+    delay_ms(CONVERSION_TIME_MS << osr);
+    if (!MS5607i_ReadAdc(&d2)) {
+        return false;
+    }
+
+    dt = (int32_t)d2 - ((uint32_t)ms5607i_calib[4] << 8);
+    temp = 2000 + ((dt*(int64_t)ms5607i_calib[5]) >> 23);
 
     off = ((uint64_t) ms5607i_calib[1] << 17) + (((int64_t)ms5607i_calib[3]*dt) >> 6);
     sens = ((uint64_t) ms5607i_calib[0] << 16) + (((int64_t)ms5607i_calib[2]*dt) >> 7);
@@ -116,23 +186,26 @@ bool MS5607_Read(ms5607_osr_t osr, uint32_t *pressure_Pa, int32_t *temp_mdeg)
 
 bool MS5607_Init(void)
 {
-    bool ret;
-    ret = MS5607i_Cmd(CMD_RESET);
-    if (!ret) {
+    uint16_t buf[8];
+
+    if (!MS5607i_Cmd(CMD_RESET)) {
+        return false;
+    }
+    delay_ms(4);
+
+    for (uint8_t i = 0; i < 8; i++) {
+        MS5607i_ReadProm(i, &buf[i]);
+    }
+
+    if (!MS5607i_Crc(buf)) {
         return false;
     }
 
-    /* Read calibration data, cal data start at offset 2 in prom */
-    for (uint8_t i = 1; i < 7; i++) {
-        MS5607i_Cmd(CMD_READ_PROM | i);
-        ret = I2Cd_Transceive(I2C_DEVICE, MS5607_ADDR, NULL, 0,
-                (uint8_t *) &ms5607i_calib[i], 2);
-        if (!ret) {
-            return false;
-        }
+    /* finally copy valid calibration to global variable */
+    for (uint8_t i = 0; i < 6; i++) {
+        ms5607i_calib[i] = buf[i+1];
     }
 
-    //TODO read crc from PROM and verify the data were readed correctly
     return true;
 }
 
