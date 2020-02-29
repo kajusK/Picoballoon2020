@@ -61,6 +61,8 @@ static bool MS5607i_Cmd(uint8_t cmd)
 /**
  * Verify PROM content is valid
  *
+ * https://www.parallax.com/sites/default/files/downloads/29124-APPNote_520_C_code.pdf
+ *
  * @param prom  Prom content (16 bytes)
  * @return true if crc matches, false otherwise
  */
