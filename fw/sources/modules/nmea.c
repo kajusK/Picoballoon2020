@@ -98,7 +98,7 @@ static void Nmeai_Float2DecDeg(nmea_float_t *f)
  * @param ap        Initialized va_list (variable arguments)
  * @return          NULL when failed or pointer to next character in msg buffer
  */
-static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
+static const char *Nmeai_ScanHelper(const char *msg, char format, va_list *ap)
 {
     int i;
 
@@ -119,7 +119,7 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
                 value = *msg++;
             }
 
-            *va_arg(ap, char *) = value;
+            *va_arg(*ap, char *) = value;
             } break;
 
         /* direction N,S,E or W */
@@ -136,13 +136,13 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
                 }
                 msg++;
             }
-            *va_arg(ap, char *) = value;
+            *va_arg(*ap, char *) = value;
             } break;
 
         /* string */
         case 's': {
             char *str;
-            str = va_arg(ap, char *);
+            str = va_arg(*ap, char *);
 
             while (!Nmeai_IsEnd(*msg)) {
                 *str++ = *msg++;
@@ -156,7 +156,7 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
             if (!Nmeai_IsEnd(*msg)) {
                 value = Nmeai_Str2Dec(&msg, 10);
             }
-            *va_arg(ap, int *) = value;
+            *va_arg(*ap, int *) = value;
             } break;
 
         /* float 123.456 */
@@ -186,7 +186,7 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
                     value = value*scale + Nmeai_Str2Dec(&msg, i);
                 }
             }
-            nmea_float_t *f = va_arg(ap, nmea_float_t *);
+            nmea_float_t *f = va_arg(*ap, nmea_float_t *);
             f->num = sign*value;
             f->scale = scale;
             /* convert coordinates to decimal degrees */
@@ -209,7 +209,7 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
                 m = Nmeai_Str2Dec(&msg, 2);
                 y = Nmeai_Str2Dec(&msg, 2);
             }
-            nmea_date_t *date = va_arg(ap, nmea_date_t *);
+            nmea_date_t *date = va_arg(*ap, nmea_date_t *);
             date->day = d;
             date->month = m;
             date->year = y;
@@ -243,7 +243,7 @@ static const char *Nmeai_ScanHelper(const char *msg, char format, va_list ap)
                     micros = Nmeai_Str2Dec(&msg, i) * scale;
                 }
             }
-            nmea_time_t *time = va_arg(ap, nmea_time_t *);
+            nmea_time_t *time = va_arg(*ap, nmea_time_t *);
             time->hour = hour;
             time->minute = min;
             time->second = sec;
@@ -286,7 +286,7 @@ static bool Nmeai_Scan(const char *msg, const char *format, ...)
     }
 
     while (*format != '\0') {
-        msg = Nmeai_ScanHelper(msg, *format++, ap);
+        msg = Nmeai_ScanHelper(msg, *format++, &ap);
         /* failed to parse field */
         if (msg == NULL) {
             ret = false;
