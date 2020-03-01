@@ -114,9 +114,6 @@ static const uint8_t rfmi_lora_region_as[RFM_CHANNELS][3] = {
 /** Currently used region */
 static const uint8_t (*rfmi_lora_region)[3] = NULL;
 
-/** Recently used lora channel */
-static uint8_t rfmi_channel;
-
 /**
  * Write value to given register
  *
@@ -253,18 +250,18 @@ void RFM_SetLoraRegion(rfm_lora_region_t region)
 
 void RFM_LoraSend(const uint8_t *data, size_t len)
 {
+    uint8_t channel;
+
     RFMi_WriteReg(RFM_REG_MODE, RFM_MODE_LORA | RFM_MODE_STDBY);
     delay_ms(10);
     /* DIO pin at tx done event */
     RFMi_WriteReg(RFM_REG_DIO_MAP, 0x40);
 
-    if (rfmi_channel >= RFM_CHANNELS) {
-        rfmi_channel = 0;
-    }
-    RFMi_WriteReg(RFM_REG_FR_MSB, rfmi_lora_region[rfmi_channel][0]);
-    RFMi_WriteReg(RFM_REG_FR_MID, rfmi_lora_region[rfmi_channel][1]);
-    RFMi_WriteReg(RFM_REG_FR_LSB, rfmi_lora_region[rfmi_channel][2]);
-    rfmi_channel++;
+    /* Random chanel, selection based on last byte of data (last byte of MIC) */
+    channel = data[len - 1] % RFM_CHANNELS;
+    RFMi_WriteReg(RFM_REG_FR_MSB, rfmi_lora_region[channel][0]);
+    RFMi_WriteReg(RFM_REG_FR_MID, rfmi_lora_region[channel][1]);
+    RFMi_WriteReg(RFM_REG_FR_LSB, rfmi_lora_region[channel][2]);
 
     RFMi_WriteReg(RFM_REG_PAYLOAD_LEN, len);
     RFMi_WriteReg(RFM_REG_FIFO_PTR, 0x80);
