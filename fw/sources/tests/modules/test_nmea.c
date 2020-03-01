@@ -235,7 +235,8 @@ TEST(NMEA, GetSentenceType)
 
 TEST(NMEA, AddChar)
 {
-    char buf[] = "$foobar,444,123,*32";
+    char buf[] = "$foobar,444,123,112123,232321,*32";
+    char buf2[] = "$foobar,444,123,*32";
     const char *res;
 
     for (size_t i = 0; i < strlen(buf); i++) {
@@ -245,6 +246,14 @@ TEST(NMEA, AddChar)
     res = Nmea_AddChar('\n');
     TEST_ASSERT_NOT_NULL(res);
     TEST_ASSERT_EQUAL_STRING(buf, res);
+
+    for (size_t i = 0; i < strlen(buf2); i++) {
+        res = Nmea_AddChar(buf2[i]);
+        TEST_ASSERT_NULL(res);
+    }
+    res = Nmea_AddChar('\n');
+    TEST_ASSERT_NOT_NULL(res);
+    TEST_ASSERT_EQUAL_STRING(buf2, res);
 }
 
 TEST_GROUP_RUNNER(NMEA)

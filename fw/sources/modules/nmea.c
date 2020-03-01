@@ -462,6 +462,7 @@ const char *Nmea_AddChar(char c)
     }
 
     if (c == '\n' || c == '\r') {
+        buf[pos] = '\0';
         pos = 0;
         return buf;
     }
