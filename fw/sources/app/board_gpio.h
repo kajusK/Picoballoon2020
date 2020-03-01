@@ -276,7 +276,7 @@
     PIN_ODR_LOW(1) | \
     PIN_ODR_LOW(2) | \
     PIN_ODR_LOW(3) | \
-    PIN_ODR_LOW(4) | \
+    PIN_ODR_HIGH(4) | \
     PIN_ODR_LOW(5) | \
     PIN_ODR_LOW(6) | \
     PIN_ODR_LOW(7) | \
