@@ -112,6 +112,10 @@ static bool Gpsi_ProcessGga(const char *msg, gps_info_t *info)
         return false;
     }
 
+    if (gga.quality == 0) {
+        return false;
+    }
+
     info->satellites = gga.satellites;
     info->lat = gga.lat;
     info->lon = gga.lon;
@@ -129,7 +133,7 @@ void Gps_Sleep(void)
 void Gps_WakeUp(void)
 {
     /* just random command to wake device up (acking nonexisting message) */
-    UARTd_Puts(GPS_DEVICE, "$PMTK001,604,3*32");
+    UARTd_Puts(GPS_DEVICE, "$PMTK001,604,3*32\r\n");
 }
 
 gps_info_t *Gps_Get(void)
@@ -155,9 +159,9 @@ gps_info_t *Gps_Loop(void)
             continue;
         }
 
+        Log_Debug("GPS", msg);
         switch (Nmea_GetSentenceType(msg)) {
             case NMEA_SENTENCE_GGA:
-                Log_Debug("GPS", msg);
                 /* Main source of data, sets data validity */
                 if (Gpsi_ProcessGga(msg, &gpsi_info)) {
                     gpsi_data_valid = true;
@@ -166,7 +170,6 @@ gps_info_t *Gps_Loop(void)
                 }
                 break;
             case NMEA_SENTENCE_RMC:
-                Log_Debug("GPS", msg);
                 Gpsi_ProcessRmc(msg, &gpsi_info);
                 break;
             default:
