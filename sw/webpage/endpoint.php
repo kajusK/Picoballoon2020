@@ -58,7 +58,7 @@ function storeData($data)
 
     $meta = $data['metadata'];
     $gw = $meta['gateways'][0];
-    $fields = $meta['payload_fields'];
+    $fields = $data['payload_fields'];
 
     $stmt->bindValue(1, $meta['time'], SQLITE3_TEXT);
     $stmt->bindValue(2, $meta['frequency'], SQLITE3_REAL);
