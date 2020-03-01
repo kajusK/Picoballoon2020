@@ -47,19 +47,19 @@ void rtc_isr(void)
     if (RTC_ISR & RTC_ISR_WUTF) {
         rtc_unlock();
         if (!rtcdi_wut_persist) {
-            RTC_CR &= ~RTC_CR_WUTIE;
+            RTC_CR &= ~(RTC_CR_WUTIE | RTC_CR_WUTE);
         }
         RTC_ISR &= ~RTC_ISR_WUTF;
         rtc_lock();
-        exti_reset_request(EXTID_LINE_RTC_WAKEUP);
+        exti_reset_request(1 << EXTID_LINE_RTC_WAKEUP);
     }
     /* Alarm A */
     if (RTC_ISR & RTC_ISR_ALRAF) {
         rtc_unlock();
-        RTC_CR &= ~RTC_CR_ALRAIE;
+        RTC_CR &= ~(RTC_CR_ALRAIE | RTC_CR_ALRAE);
         RTC_ISR &= ~RTC_ISR_ALRAF;
         rtc_lock();
-        exti_reset_request(EXTID_LINE_RTC_ALARM);
+        exti_reset_request(1 << EXTID_LINE_RTC_ALARM);
         if (rtcdi_alarm_cb != NULL) {
             rtcdi_alarm_cb();
         }
@@ -96,26 +96,26 @@ void RTCd_GetTime(struct tm *tm)
     tr = RTC_TR;
     dr = RTC_DR;
 
-    tm->tm_sec = (tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT;
-    tm->tm_sec = tm->tm_sec*10 + ((tr & RTC_TR_SU_MASK) >> RTC_TR_SU_SHIFT);
-    tm->tm_min = (tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT;
-    tm->tm_min = tm->tm_min*10 + ((tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
-    tm->tm_hour = (tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT;
-    tm->tm_hour = tm->tm_hour*10 + ((tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
+    tm->tm_sec = (tr >> RTC_TR_ST_SHIFT) & RTC_TR_ST_MASK;
+    tm->tm_sec = tm->tm_sec*10 + ((tr >> RTC_TR_SU_SHIFT) & RTC_TR_SU_MASK);
+    tm->tm_min = (tr >> RTC_TR_MNT_SHIFT) & RTC_TR_MNT_MASK;
+    tm->tm_min = tm->tm_min*10 + ((tr >> RTC_TR_MNU_SHIFT) & RTC_TR_MNU_MASK);
+    tm->tm_hour = (tr >> RTC_TR_HT_SHIFT) & RTC_TR_HT_MASK;
+    tm->tm_hour = tm->tm_hour*10 + ((tr >> RTC_TR_HU_SHIFT) & RTC_TR_HU_MASK);
     if (tr & RTC_TR_PM) {
         tm->tm_hour += 12;
     }
 
-    tm->tm_mday = (dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT;
-    tm->tm_mday = tm->tm_mday*10 + ((dr & RTC_DR_DU_MASK) >> RTC_DR_DU_SHIFT);
-    tm->tm_mon = (dr & RTC_DR_MT_MASK) >> RTC_DR_MT_SHIFT;
-    tm->tm_mon = tm->tm_mday*10 + ((dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT);
+    tm->tm_mday = (dr >> RTC_DR_DT_SHIFT) & RTC_DR_DT_MASK;
+    tm->tm_mday = tm->tm_mday*10 + ((dr >> RTC_DR_DU_SHIFT) & RTC_DR_DU_MASK);
+    tm->tm_mon = (dr >> RTC_DR_MT_SHIFT) & RTC_DR_MT_MASK;
+    tm->tm_mon = tm->tm_mon*10 + ((dr >> RTC_DR_MU_SHIFT) & RTC_DR_MU_MASK);
     tm->tm_mon -= 1;
-    tm->tm_year = (dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT;
-    tm->tm_year = tm->tm_year*10 + ((dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT);
+    tm->tm_year = (dr >> RTC_DR_YT_SHIFT) & RTC_DR_YT_MASK;
+    tm->tm_year = tm->tm_year*10 + ((dr >> RTC_DR_YU_SHIFT) & RTC_DR_YU_MASK);
     tm->tm_year += 100;
-    tm->tm_wday = (dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT;
-    tm->tm_wday %= 7;
+    tm->tm_wday = (dr >> RTC_DR_WDU_SHIFT) & RTC_DR_WDU_MASK;
+    tm->tm_wday =  (tm->tm_wday + 1) % 7;
 }
 
 void RTCd_SetTime(const struct tm *tm)
@@ -123,24 +123,24 @@ void RTCd_SetTime(const struct tm *tm)
     uint32_t dr = 0;
     uint32_t tr = 0;
 
-    tr |= (tm->tm_sec % 10) << RTC_TR_ST_SHIFT;
-    tr |= (tm->tm_sec / 10) << RTC_TR_SU_SHIFT;
-    tr |= (tm->tm_min % 10) << RTC_TR_MNT_SHIFT;
-    tr |= (tm->tm_min / 10) << RTC_TR_MNU_SHIFT;
-    tr |= (tm->tm_hour % 10) << RTC_TR_HT_SHIFT;
-    tr |= (tm->tm_hour / 10) << RTC_TR_HU_SHIFT;
+    tr |= (tm->tm_sec % 10) << RTC_TR_SU_SHIFT;
+    tr |= (tm->tm_sec / 10) << RTC_TR_ST_SHIFT;
+    tr |= (tm->tm_min % 10) << RTC_TR_MNU_SHIFT;
+    tr |= (tm->tm_min / 10) << RTC_TR_MNT_SHIFT;
+    tr |= (tm->tm_hour % 10) << RTC_TR_HU_SHIFT;
+    tr |= (tm->tm_hour / 10) << RTC_TR_HT_SHIFT;
 
-    dr |= (tm->tm_mday % 10) << RTC_DR_DT_SHIFT;
-    dr |= (tm->tm_mday / 10) << RTC_DR_DU_SHIFT;
-    dr |= ((tm->tm_mon + 1) % 10) << RTC_DR_MT_SHIFT;
-    dr |= ((tm->tm_mon + 1) / 10) << RTC_DR_MU_SHIFT;
-    dr |= ((tm->tm_year - 100) % 10) << RTC_DR_YT_SHIFT;
-    dr |= ((tm->tm_year - 100) / 10) << RTC_DR_YU_SHIFT;
+    dr |= (tm->tm_mday % 10) << RTC_DR_DU_SHIFT;
+    dr |= (tm->tm_mday / 10) << RTC_DR_DT_SHIFT;
+    dr |= ((tm->tm_mon + 1) % 10) << RTC_DR_MU_SHIFT;
+    dr |= ((tm->tm_mon + 1) / 10) << RTC_DR_MT_SHIFT;
+    dr |= ((tm->tm_year - 100) % 10) << RTC_DR_YU_SHIFT;
+    dr |= ((tm->tm_year - 100) / 10) << RTC_DR_YT_SHIFT;
 
     if (tm->tm_wday == 0) {
-        dr |= 7 << RTC_DR_YU_SHIFT;
+        dr |= 7 << RTC_DR_WDU_SHIFT;
     } else {
-        dr |= (tm->tm_wday - 1) << RTC_DR_YU_SHIFT;
+        dr |= (tm->tm_wday - 1) << RTC_DR_WDU_SHIFT;
     }
 
     RTCdi_EnterConfig();
@@ -170,13 +170,13 @@ void RTCd_SetAlarm(const struct tm *tm, rtcd_alarm_cb_t cb)
     rtcdi_alarm_cb = cb;
 
     /* ignore date field */
-    alrmar |= RTC_ALRMXR_MSK4;
-    alrmar |= (tm->tm_hour % 10) << RTC_ALRMXR_HT_SHIFT;
-    alrmar |= (tm->tm_hour / 10) << RTC_ALRMXR_HU_SHIFT;
-    alrmar |= (tm->tm_min % 10) << RTC_ALRMXR_MNT_SHIFT;
-    alrmar |= (tm->tm_min / 10) << RTC_ALRMXR_MNU_SHIFT;
-    alrmar |= (tm->tm_sec % 10) << RTC_ALRMXR_ST_SHIFT;
-    alrmar |= (tm->tm_sec / 10) << RTC_ALRMXR_SU_SHIFT;
+    alrmar = RTC_ALRMXR_MSK4;
+    alrmar |= (tm->tm_hour % 10) << RTC_ALRMXR_HU_SHIFT;
+    alrmar |= (tm->tm_hour / 10) << RTC_ALRMXR_HT_SHIFT;
+    alrmar |= (tm->tm_min % 10) << RTC_ALRMXR_MNU_SHIFT;
+    alrmar |= (tm->tm_min / 10) << RTC_ALRMXR_MNT_SHIFT;
+    alrmar |= (tm->tm_sec % 10) << RTC_ALRMXR_SU_SHIFT;
+    alrmar |= (tm->tm_sec / 10) << RTC_ALRMXR_ST_SHIFT;
 
     rtc_unlock();
     RTC_CR &= ~RTC_CR_ALRAE;
@@ -205,6 +205,14 @@ bool RTCd_Init(bool lse)
         rcc_wait_for_osc_ready(RCC_LSI);
         rcc_set_rtc_clock_source(RCC_LSI);
     }
+
+    /* Clean interrupts - e.g. woken from standby */
+    rtc_unlock();
+    RTC_CR &= ~(RTC_CR_WUTIE | RTC_CR_WUTE | RTC_CR_ALRAIE | RTC_CR_ALRAE);
+    RTC_ISR &= ~(RTC_ISR_ALRAF | RTC_ISR_WUTF);
+    rtc_lock();
+    exti_reset_request(1 << EXTID_LINE_RTC_ALARM);
+    exti_reset_request(1 << EXTID_LINE_RTC_WAKEUP);
 
     /* already configured, exit */
     if (RTC_ISR & RTC_ISR_INITS) {
