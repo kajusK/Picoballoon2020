@@ -180,7 +180,7 @@ bool MS5607_Read(ms5607_osr_t osr, uint32_t *pressure_Pa, int32_t *temp_mdeg)
     sens = sens - sens2;
     p = (((d1*sens) >> 21) - off) >> 15;
 
-    *temp_mdeg = temp / 10;
+    *temp_mdeg = temp * 10;
     *pressure_Pa = p; /* result in mbar * 100, same as Pa */
 
     return true;
