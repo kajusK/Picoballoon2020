@@ -9,7 +9,7 @@ around 5-15 km. Only requirement except weight is sending altitude of the probe.
 ![probe](img/probe.jpg)
 
 A detailed description is available at [deadbadger.cz](https://deadbadger.cz/projects/picoballoon-2020),
-tracking site is at [bal.deadbadger.cz](bal.deadbadger.cz).
+tracking site is at [bal.deadbadger.cz](https://bal.deadbadger.cz).
 
 The probe contains
   * STM32F030 MCU
@@ -54,4 +54,4 @@ auth header and stores data in sqlite database.
 User frontend is written in PHP, it shows all received packets in table
 and generates flight path on a [map](https://api.mapy.cz).
 
-![balloon](img/balloon.jpg)
+![balloon](img/balloon.JPG)
