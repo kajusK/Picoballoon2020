@@ -38,14 +38,17 @@ defined("IN_APP") or die("Unauthorized access");
     <div id="about">
         <h1>Tracking for Deadbadger picoballoon probe</h1>
         <ul>
+            <li>Launched on 2.3.2020, 11:15 from Brno Planetarium and Observatory</li>
             <li>Controlled by STM32F030</li>
-            <li>GPS receiver SIM28ML</li>
+            <li>GPS receiver SIM28ML (failed, no fix this launch)</li>
             <li>Pressure sensor MS5607</li>
-            <li>Relative humidity sensor Si7020</li>
-            <li>Powered by Solar cells with supercap (or battery only if needed)</li>
+            <li>Relative humidity sensor Si7020 (not fitted this year)</li>
+            <li>Powered by GP2 Lithium battery</li>
             <li>868MHz LoRaWan with <a href="https://www.thethingsnetwork.org/">TTN</a> for telemetry</li>
         </ul>
         <img src='probe.jpg' alt="probe" width="300px"/>
+
+        <h2>Positions estimated from LoRa gateways when GPS not available</h2>
     </div>
     <div id="map">
     </div>
@@ -53,11 +56,13 @@ defined("IN_APP") or die("Unauthorized access");
     <script type="text/javascript">
         var data = [
             <?php foreach($data as $d): ?>
-                {'lat': <?= $d['lat'] ?>,
-                 'lon': <?= $d['lon'] ?>,
-                 'time': "<?= $d['time'] ?>",
-                 'temp': "<?= $d['temp_c'] ?>",
-                 'alt_m': <?= $d['alt_m'] ?>},
+                <?php if($d['a_lat'] != 0): ?>
+                    {'lat': <?= $d['a_lat'] ?>,
+                     'lon': <?= $d['a_lon'] ?>,
+                     'time': "<?= $d['time'] ?>",
+                     'temp': "<?= $d['temp_c'] ?>",
+                     'alt_m': <?= $d['a_alt_m'] ?>},
+                <?php endif; ?>
             <?php endforeach; ?>];
         var center = SMap.Coords.fromWGS84(16.64, 49.2);
         var map = new SMap(JAK.gel("map"), center, 8);
@@ -76,7 +81,7 @@ defined("IN_APP") or die("Unauthorized access");
         for (let d of data) {
             var title = d['time']+"\nalt: "+d['alt_m']+" m\ntemp: "+d['temp']+"°C";
             var options = {'title': title};
-            var pos = SMap.Coords.fromWGS84(d['lat'], d['lon']);
+            var pos = SMap.Coords.fromWGS84(d['lon'], d['lat']);
             var marker = new SMap.Marker(pos, false, options);
             markers.addMarker(marker);
         }
@@ -88,7 +93,7 @@ defined("IN_APP") or die("Unauthorized access");
 
         var points = [];
         for (let d of data) {
-            points.push(SMap.Coords.fromWGS84(d['lat'], d['lon']));
+            points.push(SMap.Coords.fromWGS84(d['lon'], d['lat']));
         }
         var options = {
             color: "#f00",
@@ -108,12 +113,11 @@ defined("IN_APP") or die("Unauthorized access");
             <tr>
                 <th>Time</th>
                 <th>RSSI [dBm]</th>
-                <th>Altitude [m]</th>
+                <th>GPS Altitude [m]</th>
+                <th>QNH [m]</th>
                 <th>Pressure [Pa]</th>
                 <th>Temperature [C]</th>
-                <th>Humidity [%]</th>
                 <th>Battery [mV]</th>
-                <th>Solar [mV]</th>
                 <th>GPS fix</th>
             </tr>
         <?php foreach(array_reverse($data) as $d): ?>
@@ -121,11 +125,10 @@ defined("IN_APP") or die("Unauthorized access");
                 <td><?= $d['time']?> </td>
                 <td><?= $d['rssi']?></td>
                 <td><?= $d['alt_m']?></td>
+                <td><?= $d['qnh_m']?></td>
                 <td><?= $d['pressure_pa']?></td>
                 <td><?= $d['temp_c']?></td>
-                <td><?= $d['RH']?></td>
                 <td><?= $d['bat_mv']?></td>
-                <td><?= $d['solar_mv']?></td>
                 <td><?= $d['gps_fix']?></td>
             </tr>
         <?php endforeach ?>

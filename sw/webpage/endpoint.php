@@ -27,6 +27,33 @@ require_once('config.php');
 require_once('error.php');
 
 /**
+ * Average coordinates of the gateways to guess current location
+ *
+ * @param gateways  Gateways structure from parsed json
+ * @return lat lon estimate as 2 member array
+ */
+function get_position($gateways)
+{
+    $lat = 0;
+    $lon = 0;
+    $count = 0;
+
+    foreach ($gateways as $gw) {
+        if (!isset($gw['latitude'])) {
+            continue;
+        }
+        $lat += $gw['latitude'];
+        $lon += $gw['longitude'];
+        $count++;
+    }
+
+    if ($count == 0) {
+        return [0, 0];
+    }
+    return [$lat/$count, $lon/$count];
+}
+
+/**
  * Store received data to sqlite database (create if not present)
  *
  * @param data      Dictionary with json data from TTN
@@ -34,12 +61,12 @@ require_once('error.php');
 function storeData($data)
 {
     $db = new SQLite3(Config::get('db_file'));
-    $db->exec('CREATE TABLE IF NOT EXISTS data (time text,
+    $db->exec('CREATE TABLE IF NOT EXISTS data (
+        time text,
         frequency REAL,
         rssi INTEGER,
         lora_lat REAL,
         lora_lon REAL,
-        lora_alt INTEGER,
         pressure_pa INTEGER,
         temp_c REAL,
         core_temp_c REAL,
@@ -51,33 +78,34 @@ function storeData($data)
         solar_mv INTEGER,
         loop_time_s INTEGER,
         gps_fix INTEGER,
-        raw TEXT)');
+        raw TEXT,
+        UNIQUE(time))');
 
-    $stmt = $db->prepare('INSERT INTO log VALUES
-        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt = $db->prepare('INSERT OR IGNORE INTO data VALUES
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 
     $meta = $data['metadata'];
-    $gw = $meta['gateways'][0];
+    $gateways = $meta['gateways'];
     $fields = $data['payload_fields'];
+    $pos = get_position($gateways);
 
     $stmt->bindValue(1, $meta['time'], SQLITE3_TEXT);
-    $stmt->bindValue(2, $meta['frequency'], SQLITE3_REAL);
-    $stmt->bindValue(3, $gw['rssi'], SQLITE3_INTEGER);
-    $stmt->bindValue(4, $meta['latitude'], SQLITE3_REAL);
-    $stmt->bindValue(5, $meta['longitude'], SQLITE3_REAL);
-    $stmt->bindValue(6, $meta['altitude'], SQLITE3_INTEGER);
-    $stmt->bindValue(7, $fields['pressure_pa'], SQLITE3_INTEGER);
-    $stmt->bindValue(8, $fields['temp_c'], SQLITE3_REAL);
-    $stmt->bindValue(9, $fields['core_temp_c'], SQLITE3_REAL);
-    $stmt->bindValue(10, $fields['RH'], SQLITE3_INTEGER);
-    $stmt->bindValue(11, $fields['alt_m'], SQLITE3_INTEGER);
-    $stmt->bindValue(12, $fields['lat'], SQLITE3_REAL);
-    $stmt->bindValue(13, $fields['lon'], SQLITE3_REAL);
-    $stmt->bindValue(14, $fields['bat_mv'], SQLITE3_INTEGER);
-    $stmt->bindValue(15, $fields['solar_mv'], SQLITE3_INTEGER);
-    $stmt->bindValue(16, $fields['loop_time_s'], SQLITE3_INTEGER);
-    $stmt->bindValue(17, $fields['gps_fix'], SQLITE3_INTEGER);
-    $stmt->bindValue(18, $data['payload_raw'], SQLITE3_TEXT);
+    $stmt->bindValue(2, $meta['frequency'], SQLITE3_FLOAT);
+    $stmt->bindValue(3, $gateways[0]['rssi'], SQLITE3_INTEGER);
+    $stmt->bindValue(4, $pos[0], SQLITE3_FLOAT);
+    $stmt->bindValue(5, $pos[1], SQLITE3_FLOAT);
+    $stmt->bindValue(6, $fields['pressure_pa'], SQLITE3_INTEGER);
+    $stmt->bindValue(7, $fields['temp_c'], SQLITE3_FLOAT);
+    $stmt->bindValue(8, $fields['core_temp_c'], SQLITE3_FLOAT);
+    $stmt->bindValue(9, $fields['RH'], SQLITE3_INTEGER);
+    $stmt->bindValue(10, $fields['alt_m'], SQLITE3_INTEGER);
+    $stmt->bindValue(11, $fields['lat'], SQLITE3_FLOAT);
+    $stmt->bindValue(12, $fields['lon'], SQLITE3_FLOAT);
+    $stmt->bindValue(13, $fields['bat_mv'], SQLITE3_INTEGER);
+    $stmt->bindValue(14, $fields['solar_mv'], SQLITE3_INTEGER);
+    $stmt->bindValue(15, $fields['loop_time_s'], SQLITE3_INTEGER);
+    $stmt->bindValue(16, $fields['gps_fix'], SQLITE3_INTEGER);
+    $stmt->bindValue(17, $data['payload_raw'], SQLITE3_TEXT);
 
     $stmt->execute();
 }
@@ -108,6 +136,8 @@ if (!isset($_SERVER['PHP_AUTH_USER'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
+    /* Store data to file, just in case something goes wrong */
+    file_put_contents("received.txt", print_r($data, true), FILE_APPEND);
     storeData($data);
 } else {
     error('Expecting post data with json encoded payload', 404);
