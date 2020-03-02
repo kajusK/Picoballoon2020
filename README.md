@@ -6,7 +6,9 @@ organised by Brno Observatory and Planetarium. A goal of this competition
 is to make a probe under 20 grams that would be launched on ballon to altitudes
 around 5-15 km. Only requirement except weight is sending altitude of the probe.
 
-A detailed description is available at [deadbadger.cz](https://deadbadger.cz/projects/picoballon-2020),
+![probe](img/probe.jpg)
+
+A detailed description is available at [deadbadger.cz](https://deadbadger.cz/projects/picoballoon-2020),
 tracking site is at [bal.deadbadger.cz](bal.deadbadger.cz).
 
 The probe contains
@@ -50,4 +52,6 @@ HTTP integration to custom endpoint written in PHP, it verifies the
 auth header and stores data in sqlite database.
 
 User frontend is written in PHP, it shows all received packets in table
-and generates flight path on a [map](api. mapy.cz).
+and generates flight path on a [map](https://api.mapy.cz).
+
+![balloon](img/balloon.jpg)
