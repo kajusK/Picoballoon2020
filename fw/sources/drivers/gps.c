@@ -34,7 +34,8 @@
 #define GPS_DEVICE USART_GPS_TX
 
 static ring_t gpsi_ringbuf;
-static bool gpsi_data_valid = false;
+/** GPS data are valid when set to 0x03, 0 invalid, 1 gga, 2 rmc */
+static uint8_t gpsi_data_valid = 0;
 static gps_info_t gpsi_info;
 
 /**
@@ -126,7 +127,7 @@ static bool Gpsi_ProcessGga(const char *msg, gps_info_t *info)
 
 void Gps_Sleep(void)
 {
-    gpsi_data_valid = false;
+    gpsi_data_valid = 0;
     UARTd_Puts(GPS_DEVICE, "$PMTK161,0*28\r\n");
 }
 
@@ -138,7 +139,7 @@ void Gps_WakeUp(void)
 
 gps_info_t *Gps_Get(void)
 {
-    if (gpsi_data_valid) {
+    if (gpsi_data_valid == 0x03) {
         return &gpsi_info;
     }
     return NULL;
@@ -146,13 +147,13 @@ gps_info_t *Gps_Get(void)
 
 void Gps_InvalidateData(void)
 {
-    gpsi_data_valid = false;
+    gpsi_data_valid = 0;
 }
 
-//TODO valid only after both gga and rmc received
-//todo verify data contain meaningful info - lat, lon, alt, etc must not be zero
 gps_info_t *Gps_Loop(void)
 {
+    static uint8_t prev = 0;
+
     while (!Ring_Empty(&gpsi_ringbuf)) {
         const char *msg = Nmea_AddChar(Ring_Pop(&gpsi_ringbuf));
         if (msg == NULL) {
@@ -164,19 +165,26 @@ gps_info_t *Gps_Loop(void)
             case NMEA_SENTENCE_GGA:
                 /* Main source of data, sets data validity */
                 if (Gpsi_ProcessGga(msg, &gpsi_info)) {
-                    gpsi_data_valid = true;
-                    gpsi_info.timestamp = millis();
-                    return &gpsi_info;
+                    gpsi_data_valid |= 0x01;
                 }
                 break;
             case NMEA_SENTENCE_RMC:
-                Gpsi_ProcessRmc(msg, &gpsi_info);
+                if (Gpsi_ProcessRmc(msg, &gpsi_info)) {
+                    gpsi_data_valid |= 0x02;
+                }
                 break;
             default:
                 break;
         }
     }
 
+    if (gpsi_data_valid != prev && gpsi_data_valid == 0x03) {
+        gpsi_info.timestamp = millis();
+        prev = gpsi_data_valid;
+        return &gpsi_info;
+    }
+
+    prev = gpsi_data_valid;
     return NULL;
 }
 
