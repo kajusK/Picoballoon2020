@@ -1280,4 +1280,6 @@ F 3 "~" H 9650 1550 50  0001 C CNN
 	1    9650 1550
 	1    0    0    -1  
 $EndComp
+Text Notes 2700 1800 0    50   ~ 0
+Todo - route GPS timepulse to MCU to wake up core when fix is obtained
 $EndSCHEMATC

@@ -272,6 +272,8 @@ void RFM_LoraSend(const uint8_t *data, size_t len)
     while (IOd_GetLine(LINE_RFM_IO0) != 0) {
         ;
     }
+    //hotfix
+    delay_ms(550);
 
     RFMi_WriteReg(RFM_REG_MODE, RFM_MODE_LORA | RFM_MODE_SLEEP);
 }

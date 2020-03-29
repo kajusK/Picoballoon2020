@@ -194,33 +194,27 @@ static void App_Loop(void)
     uint32_t start_ts = millis();
     uint32_t tx_counter;
 
-    /* GPS is not used every loop */
-    if (gps_skip == 0) {
-        App_GpsPower(true);
-    }
     Log_Info(NULL, "Measuring");
 
-    Adcd_Wakeup();
     packet.bat_mv = Adcd_ReadMv(CHN_BAT_VOLT);
     packet.solar_mv = Adcd_ReadMv(CHN_SOLAR_VOLT);
     packet.core_temp_c = Adcd_ReadTempDegC();
     Adcd_Sleep();
 
-    packet.RH = SI7020_RH();
-    packet.state.si7020_ok = packet.RH != 0;
+    //not fitted this year
+    //packet.RH = SI7020_RH();
+    //packet.state.si7020_ok = packet.RH != 0;
+
     packet.state.ms5607_ok = MS5607_Read(MS5607_OSR1024, &press_Pa, &temp_mdeg);
     packet.press_daPa = press_Pa / 10;
-    packet.temp_dc = press_Pa / 100;
-    packet.state.gps_power = !IOd_GetLine(LINE_GPS_POWER_N);
-    packet.state.power_latch = !IOd_GetLine(LINE_POWER_OFF_N);
+    packet.temp_dc = temp_mdeg / 100;
+//    packet.state.gps_power = !IOd_GetLine(LINE_GPS_POWER_N);
+//    packet.state.power_latch = !IOd_GetLine(LINE_POWER_OFF_N);
 
     /* wait for fix */
-    while (gps_skip == 0 && Gps_Loop() == NULL &&
-            (millis() - start_ts) < GPS_FIX_TIMEOUT_S) {
-        /* Sleep until next interrupt (millis or uart from gps) */
-        Powerd_Sleep();
+    while (Gps_Loop() == NULL && (millis() - start_ts) < GPS_FIX_TIMEOUT_S*1000) {
+        ;
     }
-    App_GpsPower(false);
     gps = Gps_Get();
     if (gps != NULL) {
         App_SetRegion(gps->lat, gps->lon);
@@ -236,12 +230,6 @@ static void App_Loop(void)
         packet.state.gps_fix = false;
     }
     packet.loop_time_s = (millis() - start_ts) / 1000;
-
-    if (gps_skip == 0) {
-        gps_skip = TELEMETRY_GPS_SKIP;
-    } else {
-        gps_skip--;
-    }
 
     Log_Info(NULL, "Sending data");
     /* Save lora tx counter + 1 (in case, power dies before saving */
@@ -262,7 +250,7 @@ int main(void)
     IOd_Init();
     Time_Init();
 
-    /* Enable GPS now to get fix ASAP */
+    /* Enable GPS now to get fix ASAP, for now, also rfm95 is wired here */
     App_GpsPower(true);
 
     /* early init - debug output */
@@ -270,7 +258,7 @@ int main(void)
     Log_Info(NULL, "PicoBalloon Challenge 2020");
     Log_Info(NULL, "Deadbadger.cz");
 
-    I2Cd_Init(1, true);
+    I2Cd_Init(1, false);
     SPId_Init(1, SPID_PRESC_2, SPI_MODE_0);
     UARTd_Init(USART_GPS_TX, 9600);
     RTCd_Init(false);
@@ -280,38 +268,56 @@ int main(void)
     if (!MS5607_Init()) {
         Log_Error(NULL, "MS5607 pressure sensor not responding");
     }
+    /*
     if (!SI7020_Init()) {
         Log_Error(NULL, "SI7020 humidity sensor not responding");
     }
+    */
     if (!RFM_LoraInit()) {
         Log_Error(NULL, "RFM module not responding!");
     }
-    RFM_SetLoraRegion(RFM_REGION_EU863);
     Lora_InitAbp(RFM_LoraSend, ttn_DevAddr, ttn_NwkSkey, ttn_AppSkey);
+    RFM_SetLoraRegion(RFM_REGION_EU863);
+    RFM_SetLoraParams(RFM_BW_125k, RFM_SF_10);
+    RFM_SetPowerDBm(17);
 
     Log_Info(NULL, "System initialized, running main loop");
     Log_SetLevel(LOG_ERROR);
 
     /* ================ TODO ================ */
     /* debugging purposes only, remove for production */
-    Log_SetLevel(LOG_INFO);
-    Powerd_EnableDebugging();
+    Log_SetLevel(LOG_DEBUG);
     /* ================ TODO ================ */
-
     while (1) {
         App_Loop();
-
+        App_GpsPower(false);
         /* Don't have wakeup timer, use alarm, only hour, min, sec used */
         RTCd_GetTime(&tm);
+        /*
+        tm.tm_sec += 10;
+        if (tm.tm_sec >= 60) {
+            tm.tm_sec %= 60;
+            tm.tm_min += 1;
+        }
+        if (tm.tm_min >= 60) {
+            tm.tm_min = 0;
+            tm.tm_hour += 1;
+            tm.tm_hour %= 24;
+        }
+        */
+        Log_Info(NULL, "Start at %d %d", tm.tm_hour, tm.tm_min);
         if (tm.tm_min + (TELEMETRY_PERIOD_MIN % 60) >= 60) {
             tm.tm_hour += 1;
         }
         tm.tm_hour = (tm.tm_hour + TELEMETRY_PERIOD_MIN / 60) % 24;
         tm.tm_min = (tm.tm_min + TELEMETRY_PERIOD_MIN) % 60;
-        RTCd_SetAlarm(&tm, NULL);
+        Log_Info(NULL, "Start at %d %d", tm.tm_hour, tm.tm_min);
 
         Log_Info(NULL, "Sleeping for %d minutes", TELEMETRY_PERIOD_MIN);
-        Powerd_Stop();
+        RTCd_SetAlarm(&tm, NULL);
+        Powerd_Off();
+        Log_Error(NULL, "Failed to sleep");
+        Powerd_Reboot();
     }
 }
 
